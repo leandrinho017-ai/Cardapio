@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navega Porções e Petiscaria</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #meuModal, #modalCarrinho { display: none; }
+        .img-produto { width: 75px; height: 75px; object-fit: cover; border-radius: 10px; background: #f3f4f6; border: 1px solid #e5e7eb; }
+        .header-navega { background-color: #1e40af; border-bottom: 4px solid #facc15; }
+        .logo-perfil { width: 85px; height: 85px; border: 3px solid #facc15; border-radius: 50%; background: white; margin: 0 auto 10px; display: block; object-fit: cover; }
+    </style>
+</head>
+<body class="bg-gray-50 pb-40 font-sans text-gray-900">
+
+    <header class="header-navega text-white p-6 text-center shadow-lg">
+        <img src="https://i.ibb.co/4ZmMtPGn/1000080038.png" class="logo-perfil shadow-md">
+        <h1 class="text-base font-black uppercase italic tracking-tighter text-white">🚀 NAVEGA PORÇÕES E PETISCARIA 🚀</h1>
+    </header>
+
+    <div class="sticky top-0 bg-white shadow-sm z-40 p-3 flex gap-2 overflow-x-auto border-b">
+        <button class="bg-blue-700 text-white px-4 py-2 rounded-full text-xs font-black uppercase italic whitespace-nowrap">🍟 Porções</button>
+        <button class="bg-gray-100 text-gray-500 px-4 py-2 rounded-full text-xs font-black uppercase italic whitespace-nowrap">🥤 Bebidas (Breve)</button>
+    </div>
+
+    <div id="lista-produtos" class="p-4 space-y-4"></div>
+
+    <footer class="fixed bottom-0 w-full bg-white p-4 flex justify-between items-center shadow-2xl border-t z-50">
+        <div onclick="abrirCarrinho()" class="cursor-pointer active:scale-95 transition-transform">
+            <p class="text-[10px] text-gray-400 font-black uppercase mb-1">Total na Sacola 🛒</p>
+            <p id="total-txt" class="text-2xl font-black text-blue-700 italic">R$ 0,00</p>
+        </div>
+        <button onclick="abrirCarrinho()" class="bg-green-500 text-white px-8 py-4 rounded-xl font-black uppercase italic text-sm shadow-md active:scale-95 transition-all">
+            Ver Sacola 🚀
+        </button>
+    </footer>
+
+    <div id="meuModal" class="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-6" onclick="fecharModal()">
+        <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl" onclick="event.stopPropagation()">
+            <img id="m-img" src="" class="w-full h-64 object-cover bg-gray-200 border-b">
+            <div class="p-6 text-center">
+                <h2 id="m-titulo" class="font-black text-blue-800 border-b pb-2 uppercase italic text-xl mb-4"></h2>
+                <p id="m-desc" class="py-4 text-gray-700 italic text-base leading-relaxed px-2"></p>
+                <button onclick="fecharModal()" class="w-full bg-blue-700 text-white py-4 rounded-xl font-black uppercase mt-4 active:scale-95 shadow-lg">Voltar ao Cardápio</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalCarrinho" class="fixed inset-0 bg-black/80 z-[60] flex items-end" onclick="fecharCarrinho()">
+        <div class="bg-white w-full rounded-t-3xl p-6 shadow-2xl overflow-y-auto max-h-[90%]" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="font-black text-xl italic uppercase text-blue-800">Finalizar Pedido 🛍️</h2>
+                <button onclick="fecharCarrinho()" class="text-gray-400 font-bold text-lg">✕</button>
+            </div>
+            
+            <div id="itens-sacola" class="space-y-3 mb-6"></div>
+
+            <div class="mb-6 space-y-3 bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <label class="block text-[10px] font-black uppercase text-blue-800 italic">📍 Dados para o Entregador</label>
+                <input type="text" id="end-rua" placeholder="Rua e Número" class="w-full border rounded-lg p-3 text-sm">
+                <input type="text" id="end-bairro" placeholder="Bairro" class="w-full border rounded-lg p-3 text-sm">
+                <input type="text" id="end-ref" placeholder="Ponto de referência" class="w-full border rounded-lg p-3 text-sm">
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-[10px] font-black uppercase text-gray-400 mb-1">Observação do Pedido 📝</label>
+                <textarea id="obs-pedido" placeholder="Ex: Sem cebola..." class="w-full border rounded-lg p-3 text-sm bg-gray-50" rows="1"></textarea>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-[10px] font-black uppercase text-gray-400 mb-2">Forma de Pagamento 💳</label>
+                <select id="pagamento" class="w-full border rounded-lg p-3 text-sm bg-white font-bold text-gray-700" onchange="verificarDinheiro(this.value)">
+                    <option value="Pix">Pix</option>
+                    <option value="Cartão">Cartão</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                </select>
+                <div id="div-troco" class="mt-3 hidden">
+                    <input type="number" id="troco-para" placeholder="Troco para quanto?" class="w-full border-2 border-blue-100 rounded-lg p-3 text-sm bg-blue-50 font-bold">
+                </div>
+            </div>
+
+            <button onclick="enviarPedido()" class="w-full bg-green-500 text-white py-4 rounded-xl font-black uppercase italic shadow-lg active:scale-95 transition-all">
+                Enviar para o WhatsApp 🚀
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const WHATSAPP = "5543996649273"; 
+
+        const produtos = [
+            { id: 1, nome: 'Batata Tradicional P', preco: 35.00, desc: 'Batata frita crocante, cheddar cremoso, bacon bem picadinho, Catupiry original + nosso molho verde especial.', foto: 'https://i.ibb.co/RkcBxdMr/batata-frita-com-bacon-e-cheddar-na-airfryer.jpg' },
+            { id: 2, nome: 'Porção P 1', preco: 43.99, desc: 'Batata, bacon, queijo cheddar, Catupiry, linguiça toscana, bife acebolado + Calabresa acebolada.', foto: 'https://i.ibb.co/ntn8XdZ/IMG-20260412-203125.jpg' },
+            { id: 3, nome: 'Porção P 2', preco: 43.99, desc: 'Batata, bacon, queijo cheddar, Catupiry, isca de frango, linguiça toscana + bife acebolado.', foto: 'https://i.ibb.co/9DGm5hn/IMG-20260319-224016.png' },
+            { id: 4, nome: 'Porção P 3', preco: 43.99, desc: 'Batata, bacon, queijo cheddar, Catupiry, calabresa acebolada, isca de frango e linguiça.', foto: 'https://i.ibb.co/XkYhkyWq/IMG-20260417-185405.jpg' },
+            { id: 5, nome: 'Porção P 4', preco: 44.99, desc: 'Batata, bacon, queijo cheddar, Catupiry, isca de frango, calabresa acebolada + bife acebolado.', foto: '' },
+            { id: 6, nome: 'Porção P 5', preco: 43.99, desc: 'Batata, bacon, queijo cheddar, Catupiry, isca de frango, linguiça, bife e calabresa.', foto: '' },
+            { id: 7, nome: 'Porção P 6', preco: 49.99, desc: 'Batata, bacon, queijo cheddar, Catupiry + bife acebolado.', foto: '' },
+            { id: 8, nome: 'Porção P 7', preco: 48.99, desc: 'Batata, bacon, queijo cheddar + mais calabresa acebolada.', foto: 'https://i.ibb.co/0pqw54pT/IMG-20260417-190352.jpg' }
+        ];
+
+        let sacola = {};
+
+        function renderizarProdutos() {
+            const container = document.getElementById('lista-produtos');
+            container.innerHTML = produtos.map(p => `
+                <div class="bg-white rounded-xl shadow-sm flex border border-gray-200 overflow-hidden items-center p-2">
+                    <div onclick="abrirDetalhes('${p.nome}', '${p.desc}', '${p.foto}')" class="cursor-pointer">
+                        <img src="${p.foto || 'https://via.placeholder.com/150?text=Navega'}" class="img-produto">
+                    </div>
+                    <div class="px-3 flex-1">
+                        <h3 onclick="abrirDetalhes('${p.nome}', '${p.desc}', '${p.foto}')" class="font-black text-blue-900 text-[10px] uppercase italic leading-tight">${p.nome}</h3>
+                        <p class="text-green-600 font-black text-sm mb-1">R$ ${p.preco.toFixed(2).replace('.',',')}</p>
+                        <button onclick="abrirDetalhes('${p.nome}', '${p.desc}', '${p.foto}')" class="text-[9px] font-black text-blue-700 uppercase bg-blue-50 px-2 py-1 rounded border border-blue-100">Ver Detalhes 🔍</button>
+                    </div>
+                    <div class="flex items-center bg-gray-100 rounded-xl border-2 border-gray-200 p-1">
+                        <button onclick="mudarQtd(${p.id}, -1)" class="w-10 h-10 flex items-center justify-center bg-white rounded-lg text-red-500 font-black text-2xl">-</button>
+                        <span id="q-${p.id}" class="font-black w-8 text-center text-sm text-gray-800">0</span>
+                        <button onclick="mudarQtd(${p.id}, 1)" class="w-10 h-10 flex items-center justify-center bg-white rounded-lg text-blue-600 font-black text-2xl">+</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function abrirDetalhes(nome, desc, foto) {
+            document.getElementById('m-titulo').innerText = nome;
+            document.getElementById('m-desc').innerText = desc || "Ingredientes de alta qualidade, preparados com carinho pela Navega Porções.";
+            document.getElementById('m-img').src = foto || 'https://via.placeholder.com/600x400?text=Foto+em+Breve';
+            document.getElementById('meuModal').style.display = 'flex';
+        }
+
+        function fecharModal() { document.getElementById('meuModal').style.display = 'none'; }
+
+        function mudarQtd(id, val) {
+            const prod = produtos.find(x => x.id === id);
+            if (!sacola[id]) sacola[id] = { ...prod, qtd: 0 };
+            sacola[id].qtd += val;
+            if (sacola[id].qtd <= 0) { delete sacola[id]; document.getElementById('q-' + id).innerText = "0"; }
+            else { document.getElementById('q-' + id).innerText = sacola[id].qtd; }
+            atualizarRodape();
+        }
+
+        function atualizarRodape() {
+            let total = 0;
+            for (let id in sacola) total += sacola[id].qtd * sacola[id].preco;
+            document.getElementById('total-txt').innerText = "R$ " + total.toFixed(2).replace('.', ',');
+        }
+
+        function abrirCarrinho() {
+            const lista = document.getElementById('itens-sacola');
+            lista.innerHTML = ""; let temItem = false;
+            for (let id in sacola) {
+                temItem = true;
+                lista.innerHTML += `<div class="p-3 bg-gray-50 rounded-lg font-black text-blue-900 text-xs uppercase italic">${sacola[id].qtd}x ${sacola[id].nome}</div>`;
+            }
+            if (!temItem) return alert("Sua sacola está vazia!");
+            document.getElementById('modalCarrinho').style.display = 'flex';
+        }
+
+        function verificarDinheiro(val) {
+            document.getElementById('div-troco').classList.toggle('hidden', val !== 'Dinheiro');
+        }
+
+        function enviarPedido() {
+            const rua = document.getElementById('end-rua').value;
+            const bairro = document.getElementById('end-bairro').value;
+            if (!rua || !bairro) return alert("Preencha o endereço para o entregador!");
+
+            let resumo = ""; let totalPedido = 0;
+            for (let id in sacola) { 
+                resumo += `🔹 *${sacola[id].qtd}x ${sacola[id].nome}*\n`; 
+                totalPedido += sacola[id].qtd * sacola[id].preco; 
+            }
+            
+            const ref = document.getElementById('end-ref').value;
+            const obs = document.getElementById('obs-pedido').value;
+            const pag = document.getElementById('pagamento').value;
+            const trocoPara = parseFloat(document.getElementById('troco-para').value);
+
+            let msg = `*🎯 NOVO PEDIDO - NAVEGA PORÇÕES 🎯*\n\n${resumo}\n`;
+            msg += `*📍 ENDEREÇO:*\n${rua}\n*🏘️ BAIRRO:* ${bairro}\n`;
+            if(ref) msg += `*🗺️ REF:* ${ref}\n`;
+            if(obs) msg += `\n*📝 OBS:* ${obs}\n`;
+            
+            msg += `\n*💰 PAGAMENTO:* ${pag}`;
+            if(pag === 'Dinheiro' && trocoPara > totalPedido) {
+                msg += `\n*💵 Troco para:* R$ ${trocoPara.toFixed(2).replace('.',',')}`;
+                msg += `\n*👉 (LEVAR R$ ${(trocoPara - totalPedido).toFixed(2).replace('.',',')} DE TROCO)*`;
+            }
+            
+            msg += `\n\n*👑 TOTAL: R$ ${totalPedido.toFixed(2).replace('.', ',')}* 👑`;
+
+            window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`);
+        }
+
+        function fecharCarrinho() { document.getElementById('modalCarrinho').style.display = 'none'; }
+        renderizarProdutos();
+    </script>
+</body>
+</html>
