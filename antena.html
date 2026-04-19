@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antena - Navega Porções</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card { background: white; border-radius: 12px; padding: 15px; border: 1px solid #e5e7eb; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .input-navega { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px; font-weight: bold; }
+        .status-on { background-color: #22c55e; color: white; }
+        .status-off { background-color: #ef4444; color: white; }
+        .aba-btn { padding: 12px 10px; font-size: 10px; font-weight: 900; text-transform: uppercase; border-bottom: 3px solid transparent; color: #9ca3af; transition: 0.3s; flex-shrink: 0; }
+        .aba-ativa { border-bottom: 3px solid #1e40af; color: #1e40af; background: #eff6ff; }
+        .secao-aba { display: none; }
+        .secao-ativa { display: block; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 pb-28 font-sans">
+
+    <header class="bg-blue-800 p-4 text-white shadow-lg">
+        <h1 class="text-xl font-black uppercase italic">📡 Painel Antena</h1>
+    </header>
+
+    <div class="sticky top-0 bg-white shadow-md z-40 flex overflow-x-auto no-scrollbar border-b">
+        <button onclick="abrirAba('aba-loja')" id="btn-aba-loja" class="aba-btn flex-1 aba-ativa">Loja</button>
+        <button onclick="abrirAba('aba-tempo')" id="btn-aba-tempo" class="aba-btn flex-1">Tempos</button>
+        <button onclick="abrirAba('aba-precos')" id="btn-aba-precos" class="aba-btn flex-1">Preços</button>
+        <button onclick="abrirAba('aba-texto')" id="btn-aba-texto" class="aba-btn flex-1">Cardápio</button>
+        <button onclick="abrirAba('aba-taxas')" id="btn-aba-taxas" class="aba-btn flex-1">Taxas</button>
+        <button onclick="abrirAba('aba-info')" id="btn-aba-info" class="aba-btn flex-1">WhatsApp</button>
+    </div>
+
+    <div class="p-4 space-y-4">
+        <section id="aba-loja" class="secao-aba secao-ativa">
+            <div class="card">
+                <h2 class="font-black text-sm uppercase mb-3 text-blue-900 italic">Status da Loja</h2>
+                <button id="btn-status" onclick="alternarLoja()" class="w-full py-6 rounded-xl font-black uppercase italic shadow-md">Carregando...</button>
+            </div>
+        </section>
+
+        <section id="aba-tempo" class="secao-aba">
+            <div class="card space-y-4">
+                <h2 class="font-black text-sm uppercase text-blue-900 italic">Tempos de Espera</h2>
+                <div><label class="block text-[10px] font-black uppercase text-gray-400 italic">⏱️ Preparo</label><input type="text" id="preparo" class="input-navega"></div>
+                <div><label class="block text-[10px] font-black uppercase text-gray-400 italic">🛵 Entrega</label><input type="text" id="entrega" class="input-navega"></div>
+            </div>
+        </section>
+
+        <section id="aba-precos" class="secao-aba">
+            <div class="card">
+                <h2 class="font-black text-sm uppercase mb-4 text-blue-900 italic">Preços (R$)</h2>
+                <div id="lista-precos" class="space-y-3"></div>
+            </div>
+        </section>
+
+        <section id="aba-texto" class="secao-aba">
+            <div class="card space-y-4">
+                <h2 class="font-black text-sm uppercase text-blue-900 italic">Descrições dos Itens</h2>
+                <div id="lista-descricoes" class="space-y-6"></div>
+            </div>
+        </section>
+
+        <section id="aba-taxas" class="secao-aba">
+            <div class="card">
+                <h2 class="font-black text-sm uppercase mb-4 text-blue-900 italic text-blue-800">TAXAS DE ENTREGA</h2>
+                <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <label class="block text-[10px] font-black uppercase text-blue-400 mb-1">📍 TAXA PADRÃO (OUTROS BAIRROS)</label>
+                    <input type="number" step="0.01" id="taxaPadrao" class="input-navega border-blue-200">
+                </div>
+                
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="novo-bairro" placeholder="Bairro" class="input-navega text-xs flex-1">
+                    <input type="number" id="valor-bairro" placeholder="R$" class="input-navega text-xs w-20">
+                    <button onclick="adicionarTaxa()" class="bg-blue-600 text-white px-4 rounded-lg font-black">+</button>
+                </div>
+
+                <div id="lista-taxas" class="space-y-1"></div>
+            </div>
+        </section>
+
+        <section id="aba-info" class="secao-aba">
+            <div class="card">
+                <h2 class="font-black text-sm uppercase mb-4 text-blue-900 italic">WhatsApp</h2>
+                <input type="text" id="whatsapp" class="input-navega">
+            </div>
+        </section>
+    </div>
+
+    <div class="fixed bottom-0 left-0 w-full p-4 bg-white border-t z-50">
+        <button onclick="salvarTudo()" class="w-full bg-blue-800 text-white py-4 rounded-xl font-black uppercase italic shadow-lg">💾 SALVAR TODAS ALTERAÇÕES</button>
+    </div>
+
+    <script>
+        let config = JSON.parse(localStorage.getItem('NAVEGA_CONFIG')) || {
+            aberta: true, preparo: '30-45 min', entrega: '20 min', whatsapp: '5543996649273', taxaPadrao: 7.00
+        };
+
+        const DESC_LISTA = {
+            1: "Batata, cheddar, bacon, Catupiry + molho verde",
+            2: "Batata bacon queijo cheddar Catupiry linguiça toscana bife acebolado + Calabresa acebolada e molho verde para acompanhar.",
+            3: "Batata bacon queijo cheddar Catupiry isca de frango linguiça toscana + bife acebolado",
+            4: "Batata bacon queijo cheddar Catupiry calabresa acebolada isca de frango e linguiça toscana",
+            5: "Batata bacon queijo cheddar Catupiry isca de frango calabresa acebolada+bife acebolado e molho verde para acompanhar.",
+            6: "Batata bacon queijo cheddar Catupiry isca de frango linguiça toscana bife acebolado e calabresa acebolada + molho verde para acompanhar",
+            7: "Batata bacon queijo cheddar Catupiry+ bife acebolado e Delicioso molho verde para acompanhar",
+            8: "Batata bacon queijo cheddar +mais calabresa acebolada e molho verde para acompanhar.",
+            10: "Batata, cheddar, bacon, Catupiry + molho verde",
+            11: "Batata bacon queijo cheddar Catupiry linguiça toscana bife acebolado + Calabresa acebolada e molho verde para acompanhar.",
+            12: "Batata bacon queijo cheddar Catupiry isca de frango linguiça toscana + bife acebolado",
+            13: "Batata bacon queijo cheddar Catupiry calabresa acebolada isca de frango e linguiça toscana",
+            14: "Batata bacon queijo cheddar Catupiry isca de frango calabresa acebolada+bife acebolado e molho verde para acompanhar.",
+            15: "Batata bacon queijo cheddar Catupiry isca de frango linguiça toscana bife acebolado e calabresa acebolada + molho verde para acompanhar",
+            20: "Batata, cheddar, bacon, Catupiry + molho verde",
+            21: "Batata bacon queijo cheddar Catupiry linguiça toscana bife acebolado + Calabresa acebolada e molho verde para acompanhar.",
+            22: "Batata bacon queijo cheddar Catupiry isca de frango linguiça toscana + bife acebolado",
+            23: "Batata bacon queijo cheddar Catupiry calabresa acebolada isca de frango e linguiça toscana",
+            24: "Batata bacon queijo cheddar Catupiry isca de frango calabresa acebolada+bife acebolado e molho verde para acompanhar.",
+            25: "Batata bacon queijo cheddar Catupiry isca de frango linguiça toscana bife acebolado e calabresa acebolada + molho verde para acompanhar"
+        };
+
+        let produtos = [
+            { id: 1, nome: 'Batata Tradicional P', preco: 35.00 },
+            { id: 2, nome: 'Porção P 1', preco: 43.99 },
+            { id: 3, nome: 'Porção P 2', preco: 43.99 },
+            { id: 4, nome: 'Porção P 3', preco: 43.99 },
+            { id: 5, nome: 'Porção P 4', preco: 44.99 },
+            { id: 6, nome: 'Porção P 5', preco: 43.99 },
+            { id: 7, nome: 'Porção P 6', preco: 49.99 },
+            { id: 8, nome: 'Porção P 7', preco: 48.99 },
+            { id: 10, nome: 'Batata Tradicional M', preco: 45.00 },
+            { id: 11, nome: 'Porção M 1', preco: 64.99 },
+            { id: 12, nome: 'Porção M 2', preco: 64.99 },
+            { id: 13, nome: 'Porção M 3', preco: 64.99 },
+            { id: 14, nome: 'Porção M 4', preco: 65.99 },
+            { id: 15, nome: 'Porção M 5', preco: 64.99 },
+            { id: 20, nome: 'Batata Tradicional G', preco: 55.00 },
+            { id: 21, nome: 'Porção G 1', preco: 74.99 },
+            { id: 22, nome: 'Porção G 2', preco: 74.99 },
+            { id: 23, nome: 'Porção G 3', preco: 74.99 },
+            { id: 24, nome: 'Porção G 4', preco: 75.99 },
+            { id: 25, nome: 'Porção G 5', preco: 75.99 }
+        ];
+
+        let precosAtuais = JSON.parse(localStorage.getItem('NAVEGA_PRODUTOS')) || [];
+        let descricoesAtuais = JSON.parse(localStorage.getItem('NAVEGA_DESCRICOES')) || {};
+        let taxasBairros = JSON.parse(localStorage.getItem('NAVEGA_TAXAS')) || [];
+
+        function abrirAba(idAba) {
+            document.querySelectorAll('.secao-aba').forEach(s => s.classList.remove('secao-ativa'));
+            document.querySelectorAll('.aba-btn').forEach(b => b.classList.remove('aba-ativa'));
+            document.getElementById(idAba).classList.add('secao-ativa');
+            document.getElementById('btn-' + idAba).classList.add('aba-ativa');
+        }
+
+        function carregarInterface() {
+            const btn = document.getElementById('btn-status');
+            btn.innerText = config.aberta ? "LOJA ABERTA ✅" : "LOJA FECHADA ❌";
+            btn.className = config.aberta ? "w-full py-6 rounded-xl font-black uppercase italic shadow-md status-on" : "w-full py-6 rounded-xl font-black uppercase italic shadow-md status-off";
+            
+            document.getElementById('preparo').value = config.preparo;
+            document.getElementById('entrega').value = config.entrega;
+            document.getElementById('whatsapp').value = config.whatsapp;
+            document.getElementById('taxaPadrao').value = parseFloat(config.taxaPadrao).toFixed(2);
+
+            const containerPrecos = document.getElementById('lista-precos');
+            containerPrecos.innerHTML = "";
+            const containerDesc = document.getElementById('lista-descricoes');
+            containerDesc.innerHTML = "";
+
+            produtos.forEach(p => {
+                const salvoP = precosAtuais.find(x => x.id === p.id);
+                const valorRaw = salvoP ? salvoP.preco : p.preco;
+                containerPrecos.innerHTML += `<div class="flex justify-between items-center border-b pb-2"><span class="text-[10px] font-black text-gray-400 uppercase">${p.nome}</span><input type="number" step="0.01" data-id="${p.id}" value="${parseFloat(valorRaw).toFixed(2)}" class="preco-input border-2 border-blue-50 rounded px-2 py-1 w-24 text-right font-black text-blue-700"></div>`;
+
+                const descValor = descricoesAtuais[p.id] || DESC_LISTA[p.id] || "";
+                containerDesc.innerHTML += `<div class="border-l-4 border-blue-600 pl-3 pb-2"><label class="block text-[10px] font-black uppercase text-blue-900 mb-1 italic">${p.nome}</label><textarea data-id="${p.id}" class="desc-input input-navega text-[11px] h-16 font-normal">${descValor}</textarea></div>`;
+            });
+            renderizarTaxas();
+        }
+
+        function alternarLoja() { config.aberta = !config.aberta; carregarInterface(); }
+
+        function adicionarTaxa() {
+            const bairro = document.getElementById('novo-bairro').value;
+            const valor = document.getElementById('valor-bairro').value;
+            if(!bairro || !valor) return;
+            taxasBairros.push({ bairro: bairro.toUpperCase(), valor: parseFloat(valor) });
+            document.getElementById('novo-bairro').value = "";
+            document.getElementById('valor-bairro').value = "";
+            renderizarTaxas();
+        }
+
+        function removerTaxa(index) { taxasBairros.splice(index, 1); renderizarTaxas(); }
+
+        function renderizarTaxas() {
+            const div = document.getElementById('lista-taxas');
+            div.innerHTML = "";
+            taxasBairros.forEach((t, i) => {
+                div.innerHTML += `
+                    <div class="flex justify-between items-center bg-white p-3 border-b border-gray-100">
+                        <span class="text-[11px] font-black uppercase italic">${t.bairro} - R$ ${parseFloat(t.valor).toFixed(2)}</span>
+                        <button onclick="removerTaxa(${i})" class="text-red-500 font-black px-2 text-xl">X</button>
+                    </div>`;
+            });
+        }
+
+        function salvarTudo() {
+            config.preparo = document.getElementById('preparo').value;
+            config.entrega = document.getElementById('entrega').value;
+            config.whatsapp = document.getElementById('whatsapp').value;
+            config.taxaPadrao = document.getElementById('taxaPadrao').value;
+            localStorage.setItem('NAVEGA_CONFIG', JSON.stringify(config));
+
+            const novosPrecos = [];
+            document.querySelectorAll('.preco-input').forEach(input => {
+                novosPrecos.push({ id: parseInt(input.dataset.id), preco: parseFloat(input.value) || 0 });
+            });
+            localStorage.setItem('NAVEGA_PRODUTOS', JSON.stringify(novosPrecos));
+            
+            const novasDesc = {};
+            document.querySelectorAll('.desc-input').forEach(textarea => {
+                novasDesc[textarea.dataset.id] = textarea.value;
+            });
+            localStorage.setItem('NAVEGA_DESCRICOES', JSON.stringify(novasDesc));
+            localStorage.setItem('NAVEGA_TAXAS', JSON.stringify(taxasBairros));
+
+            // ATUALIZAÇÃO CRUCIAL: Atualiza as variáveis locais para não resetar a tela
+            precosAtuais = novosPrecos;
+            descricoesAtuais = novasDesc;
+
+            alert("✅ PAINEL ATUALIZADO E SALVO!");
+            carregarInterface();
+        }
+
+        if(taxasBairros.length === 0) {
+            taxasBairros = [
+                {bairro: "CENTRO", valor: 0.00},
+                {bairro: "GRAVATÁ", valor: 6.00},
+                {bairro: "MEIA PRAIA", valor: 2.00},
+                {bairro: "SÃO DOMINGOS", valor: 2.00}
+            ];
+        }
+
+        carregarInterface();
+    </script>
+</body>
+</html>
