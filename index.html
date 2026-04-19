@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navega Porções e Petiscaria</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #meuModal, #modalCarrinho { display: none; }
+        .img-produto { width: 75px; height: 75px; object-fit: cover; border-radius: 10px; background: #f3f4f6; border: 1px solid #e5e7eb; }
+        .header-navega { background-color: #1e40af; border-bottom: 4px solid #facc15; }
+        .logo-perfil { width: 85px; height: 85px; border: 3px solid #facc15; border-radius: 50%; background: white; margin: 0 auto 10px; display: block; object-fit: cover; }
+        .aba-ativa { border-bottom: 4px solid #facc15; color: #1e40af; background-color: #f8fafc; }
+        .divisor-tamanho { background: #eff6ff; color: #1e40af; padding: 8px 15px; font-weight: 900; font-style: italic; text-transform: uppercase; font-size: 12px; border-left: 5px solid #facc15; margin-top: 15px; border-radius: 4px; }
+        .loja-fechada { filter: grayscale(1); pointer-events: none; opacity: 0.6; }
+        .badge-fechado { background: #ef4444; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; margin-top: 5px; display: inline-block; }
+    </style>
+</head>
+<body class="bg-gray-50 pb-40 font-sans text-gray-900">
+
+    <header class="header-navega text-white p-6 text-center shadow-lg">
+        <img src="https://i.ibb.co/4ZmMtPGn/1000080038.png" class="logo-perfil shadow-md">
+        <h1 class="text-base font-black uppercase italic tracking-tighter text-white">🚀 NAVEGA PORÇÕES E PETISCARIA 🚀</h1>
+        <div id="status-loja-badge"></div>
+    </header>
+
+    <div class="bg-white shadow-sm p-3 flex gap-2 border-b text-center justify-center">
+       <span id="info-preparo" class="text-[10px] font-black uppercase text-blue-800 italic">⏱️ Carregando informações...</span>
+    </div>
+
+    <div class="sticky top-0 bg-white shadow-md z-40 flex justify-around border-b font-black uppercase italic">
+        <button onclick="filtrar('porcoes')" id="tab-porcoes" class="py-5 w-full aba-ativa text-base">🍟 Porções</button>
+        <button onclick="filtrar('bebidas')" id="tab-bebidas" class="py-5 w-full text-gray-400 text-base">🥤 Bebidas</button>
+    </div>
+
+    <div id="lista-produtos" class="p-4 space-y-4"></div>
+
+    <footer id="footer-carrinho" class="fixed bottom-0 w-full bg-white p-4 flex justify-between items-center shadow-2xl border-t z-50">
+        <div onclick="abrirCarrinho()" class="cursor-pointer">
+            <p class="text-[10px] text-gray-400 font-black uppercase mb-1">Total 🛒</p>
+            <p id="total-txt" class="text-2xl font-black text-blue-700 italic">R$ 0,00</p>
+        </div>
+        <button id="btn-finalizar" onclick="abrirCarrinho()" class="bg-green-500 text-white px-8 py-4 rounded-xl font-black uppercase italic text-sm shadow-md active:scale-95 transition-all">Fazer Pedido 🚀</button>
+    </footer>
+
+    <div id="modalCarrinho" class="fixed inset-0 bg-black/80 z-[60] flex items-end" onclick="fecharCarrinho()">
+        <div class="bg-white w-full rounded-t-3xl p-6 shadow-2xl overflow-y-auto max-h-[90%]" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="font-black text-xl italic uppercase text-blue-800 text-center w-full ml-6">Finalizar Pedido 🛍️</h2>
+                <button onclick="fecharCarrinho()" class="bg-gray-100 text-gray-500 w-10 h-10 rounded-full font-black text-xl shadow-inner flex items-center justify-center border">✕</button>
+            </div>
+            
+            <div id="itens-sacola" class="space-y-3 mb-4 text-sm font-bold"></div>
+
+            <div class="space-y-1 p-3 bg-gray-100 rounded-xl mb-6 border border-dashed border-gray-300">
+                <div class="flex justify-between items-center">
+                    <span class="font-black uppercase italic text-gray-500 text-[10px]">Taxa de Entrega:</span>
+                    <span id="taxa-entrega-txt" class="font-black text-sm text-gray-700 italic">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center border-t pt-1">
+                    <span class="font-black uppercase italic text-gray-500 text-[11px]">Total do Pedido:</span>
+                    <span id="total-sacola-txt" class="font-black text-xl text-blue-800 italic">R$ 0,00</span>
+                </div>
+            </div>
+            
+            <div class="mb-6 space-y-3 bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <p class="text-blue-800 font-black text-[10px] uppercase italic mb-1">📍 Endereço de Entrega:</p>
+                <input type="text" id="end-rua" placeholder="Rua e Número" class="w-full border rounded-lg p-3 text-sm">
+                <input type="text" id="end-bairro" placeholder="Digite seu Bairro" class="w-full border rounded-lg p-3 text-sm font-bold uppercase" oninput="validarBairroDinamico(this.value)">
+                <div id="alerta-taxa" class="hidden text-[10px] font-black uppercase italic p-2 rounded-lg text-center"></div>
+                <input type="text" id="end-ref" placeholder="Ponto de referência" class="w-full border rounded-lg p-3 text-sm">
+                <textarea id="obs-pedido" placeholder="Alguma observação?" class="w-full border rounded-lg p-3 text-sm" rows="2"></textarea>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-[10px] font-black uppercase text-gray-400 mb-2 font-bold">Pagamento</label>
+                <select id="pagamento" class="w-full border rounded-lg p-3 text-sm bg-white font-bold" onchange="verificarDinheiro(this.value)">
+                    <option value="Pix">Pix</option>
+                    <option value="Cartão">Cartão</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                </select>
+                <div id="div-troco" class="mt-3 hidden">
+                    <input type="number" id="troco-para" placeholder="Troco para quanto?" class="w-full border-2 border-blue-100 rounded-lg p-3 text-sm bg-blue-50">
+                </div>
+            </div>
+            <button onclick="enviarPedido()" class="w-full bg-green-500 text-white py-4 rounded-xl font-black uppercase italic shadow-lg mb-4">Enviar Pedido 🚀</button>
+        </div>
+    </div>
+
+    <div id="meuModal" class="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-6" onclick="fecharModal()">
+        <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl" onclick="event.stopPropagation()">
+            <img id="m-img" src="" class="w-full h-64 object-cover">
+            <div class="p-6 text-center">
+                <h2 id="m-titulo" class="font-black text-blue-800 border-b pb-2 uppercase italic text-xl mb-4"></h2>
+                <p id="m-desc" class="py-4 text-gray-700 italic text-base px-2"></p>
+                <button onclick="fecharModal()" class="w-full bg-blue-700 text-white py-4 rounded-xl font-black uppercase mt-4 active:scale-95">Voltar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let categoriaAtual = 'porcoes';
+        let sacola = {};
+        let taxaAtual = 0.00;
+
+        let produtos = [
+            { id: 1, cat: 'porcoes', grupo: 'Tamanho P', nome: 'Batata Tradicional P', preco: 35.00, desc: 'Batata frita crocante, cheddar, bacon, Catupiry + molho verde.', foto: 'https://i.ibb.co/RkcBxdMr/batata-frita-com-bacon-e-cheddar-na-airfryer.jpg' },
+            { id: 2, cat: 'porcoes', grupo: 'Tamanho P', nome: 'Porção P 1', preco: 43.99, desc: 'Batata, bacon, cheddar, Catupiry, linguiça toscana, bife acebolado + Calabresa acebolada.', foto: 'https://i.ibb.co/ntn8XdZ/IMG-20260412-203125.jpg' },
+            { id: 3, cat: 'porcoes', grupo: 'Tamanho P', nome: 'Porção P 2', preco: 43.99, desc: 'Batata, bacon, cheddar, Catupiry, isca de frango, linguiça toscana + bife acebolado.', foto: 'https://i.ibb.co/9DGm5hn/IMG-20260319-224016.png' },
+            { id: 4, cat: 'porcoes', grupo: 'Tamanho P', nome: 'Porção P 3', preco: 43.99, desc: 'Batata, bacon, cheddar, Catupiry, calabresa acebolada, isca de frango e linguiça toscana.', foto: 'https://i.ibb.co/XkYhkyWq/IMG-20260417-185405.jpg' },
+            { id: 5, cat: 'porcoes', grupo: 'Tamanho P', nome: 'Porção P 4', preco: 44.99, desc: 'Batata, bacon, cheddar, Catupiry, isca de frango, calabresa + bife acebolado.', foto: 'https://i.ibb.co/4ZmMtPGn/1000080038.png' },
+            { id: 6, cat: 'porcoes', grupo: 'Tamanho P', nome: 'Porção P 5', preco: 43.99, desc: 'Batata, bacon, cheddar, Catupiry, frango, linguiça, bife e calabresa.', foto: 'https://i.ibb.co/4ZmMtPGn/1000080038.png' },
+            { id: 7, cat: 'porcoes', grupo: 'Tamanho P', nome: 'Porção P 6', preco: 43.99, desc: 'Mix completo da casa tamanho P.', foto: 'https://i.ibb.co/4ZmMtPGn/1000080038.png' },
+            { id: 8, cat: 'porcoes', grupo: 'Tamanho P', nome: 'Porção P 7', preco: 48.99, desc: 'Batata, bacon, cheddar + mais calabresa acebolada.', foto: 'https://i.ibb.co/0pqw54pT/IMG-20260417-190352.jpg' },
+            { id: 10, cat: 'porcoes', grupo: 'Tamanho M', nome: 'Batata Tradicional M', preco: 45.00, desc: 'Batata, cheddar, bacon, Catupiry + molho verde.', foto: 'https://i.ibb.co/hRV0Lqfy/IMG-20260418-191113.jpg' },
+            { id: 11, cat: 'porcoes', grupo: 'Tamanho M', nome: 'Porção M 1', preco: 64.99, desc: 'Batata, bacon, cheddar, Catupiry, linguiça toscana, bife acebolado + Calabresa acebolada.', foto: 'https://i.ibb.co/HfGrBmbH/IMG-20260418-WA0023.jpg' },
+            { id: 12, cat: 'porcoes', grupo: 'Tamanho M', nome: 'Porção M 2', preco: 64.99, desc: 'Batata, bacon, cheddar, Catupiry, isca de frango, linguiça toscana + bife acebolado.', foto: 'https://i.ibb.co/4ZmMtPGn/1000080038.png' },
+            { id: 13, cat: 'porcoes', grupo: 'Tamanho M', nome: 'Porção M 3', preco: 64.99, desc: 'Batata, bacon, cheddar, Catupiry, calabresa acebolada, isca de frango e linguiça toscana.', foto: 'https://i.ibb.co/PzDhvMtF/IMG-20260319-205625.jpg' },
+            { id: 14, cat: 'porcoes', grupo: 'Tamanho M', nome: 'Porção M 4', preco: 65.99, desc: 'Batata, bacon, cheddar, Catupiry, isca de frango, calabresa acebolada + molho verde.', foto: 'https://i.ibb.co/bjtSP7CC/IMG-20260418-211926.png' },
+            { id: 15, cat: 'porcoes', grupo: 'Tamanho M', nome: 'Porção M 5', preco: 64.99, desc: 'Batata, bacon, cheddar, Catupiry, isca de frango, linguiça toscana, bife acebolado e calabresa.', foto: 'https://i.ibb.co/GfbPFfZQ/IMG-20260418-201125.jpg' },
+            { id: 20, cat: 'porcoes', grupo: 'Tamanho G', nome: 'Batata Tradicional G', preco: 55.00, desc: 'Batata, cheddar, bacon, Catupiry + molho verde.', foto: 'https://i.ibb.co/sdF0BmzQ/IMG-20260418-185448.jpg' },
+            { id: 21, cat: 'porcoes', grupo: 'Tamanho G', nome: 'Porção G 1', preco: 74.99, desc: 'Batata, bacon, cheddar, Catupiry, linguiça toscana, bife acebolado + Calabresa acebolada.', foto: 'https://i.ibb.co/4ZmMtPGn/1000080038.png' },
+            { id: 22, cat: 'porcoes', grupo: 'Tamanho G', nome: 'Porção G 2', preco: 74.99, desc: 'Batata, bacon, cheddar, Catupiry, isca de frango, linguiça toscana + bife acebolado.', foto: 'https://i.ibb.co/4ZmMtPGn/1000080038.png' },
+            { id: 23, cat: 'porcoes', grupo: 'Tamanho G', nome: 'Porção G 3', preco: 74.99, desc: 'Batata, bacon, cheddar, Catupiry, calabresa acebolada, isca de frango e linguiça toscana.', foto: 'https://i.ibb.co/YBNcnf1V/IMG-20260327-210409.jpg' },
+            { id: 24, cat: 'porcoes', grupo: 'Tamanho G', nome: 'Porção G 4', preco: 75.99, desc: 'Batata, bacon, cheddar, Catupiry, isca de frango, calabresa acebolada + bife acebolado.', foto: 'https://i.ibb.co/4ZmMtPGn/1000080038.png' },
+            { id: 25, cat: 'porcoes', grupo: 'Tamanho G', nome: 'Porção G 5', preco: 75.99, desc: 'Batata, bacon, cheddar, Catupiry, frango, linguiça, bife e calabresa tamanho G.', foto: 'https://i.ibb.co/203tt4m9/IMG-20260326-WA0020.jpg' },
+            { id: 50, cat: 'bebidas', grupo: 'Refrigerantes', nome: 'Coca-Cola 2L', preco: 17.99, desc: 'Gelada.', foto: 'https://i.ibb.co/7tMVsnPS/2301822-7894900027013-BEB-REFRIG-COCA-COLA-2-L-PET.jpg' },
+            { id: 51, cat: 'bebidas', grupo: 'Refrigerantes', nome: 'Kuat 2L', preco: 12.50, desc: 'Gelada.', foto: 'https://i.ibb.co/B5qbSsBV/IMG-20260418-192121.jpg' },
+            { id: 52, cat: 'bebidas', grupo: 'Refrigerantes', nome: 'Sprite 2L', preco: 14.99, desc: 'Gelada.', foto: 'https://i.ibb.co/zHLh5MM5/whatsapp-image-2024-08-13-at-13-05-44.jpg' }
+        ];
+
+        function carregarDadosAntena() {
+            try {
+                const configSalva = JSON.parse(localStorage.getItem('NAVEGA_CONFIG'));
+                const precosSalvos = JSON.parse(localStorage.getItem('NAVEGA_PRODUTOS'));
+                const descSalvas = JSON.parse(localStorage.getItem('NAVEGA_DESCRICOES'));
+
+                if (configSalva) {
+                    document.getElementById('info-preparo').innerHTML = `⏱️ PREPARO: ${configSalva.preparo} | 🛵 ENTREGA: ${configSalva.entrega}`;
+                    const btnFinal = document.getElementById('btn-finalizar');
+                    if (!configSalva.aberta) {
+                        document.body.classList.add('loja-fechada');
+                        document.getElementById('status-loja-badge').innerHTML = `<span class="badge-fechado font-black uppercase italic">Loja Fechada</span>`;
+                        btnFinal.innerText = "LOJA FECHADA";
+                    } else {
+                        document.body.classList.remove('loja-fechada');
+                        document.getElementById('status-loja-badge').innerHTML = "";
+                        btnFinal.innerText = "Fazer Pedido 🚀";
+                    }
+                }
+
+                produtos.forEach(p => {
+                    if (precosSalvos) {
+                        const novoPreco = precosSalvos.find(x => x.id === p.id);
+                        if (novoPreco) p.preco = parseFloat(novoPreco.preco) || p.preco;
+                    }
+                    if (descSalvas && descSalvas[p.id]) {
+                        p.desc = descSalvas[p.id];
+                    }
+                });
+
+                renderizarProdutos();
+            } catch(e) { console.error("Erro ao carregar antena", e); }
+        }
+
+        function validarBairroDinamico(texto) {
+            const normalizar = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            const bairroDigitado = normalizar(texto);
+            const alerta = document.getElementById('alerta-taxa');
+            const taxasSalvas = JSON.parse(localStorage.getItem('NAVEGA_TAXAS')) || [];
+            const configSalva = JSON.parse(localStorage.getItem('NAVEGA_CONFIG')) || { taxaPadrao: 0 };
+
+            const busca = taxasSalvas.find(t => normalizar(t.bairro) === bairroDigitado);
+
+            if (busca) {
+                taxaAtual = parseFloat(busca.valor) || 0;
+                alerta.innerText = (taxaAtual === 0) ? "✅ ENTREGA GRÁTIS!" : `🛵 TAXA DE ENTREGA: R$ ${taxaAtual.toFixed(2).replace('.', ',')}`;
+                alerta.className = (taxaAtual === 0) ? "block text-[10px] font-black uppercase italic p-2 rounded-lg bg-green-100 text-green-600 mt-2" : "block text-[10px] font-black uppercase italic p-2 rounded-lg bg-red-100 text-red-600 mt-2";
+            } else if (bairroDigitado.length > 3) {
+                taxaAtual = parseFloat(configSalva.taxaPadrao) || 0;
+                alerta.innerText = (taxaAtual === 0) ? "✅ ENTREGA GRÁTIS (PADRÃO)!" : `🛵 TAXA DE ENTREGA PADRÃO: R$ ${taxaAtual.toFixed(2).replace('.', ',')}`;
+                alerta.className = (taxaAtual === 0) ? "block text-[10px] font-black uppercase italic p-2 rounded-lg bg-green-100 text-green-600 mt-2" : "block text-[10px] font-black uppercase italic p-2 rounded-lg bg-blue-100 text-blue-800 mt-2";
+            } else {
+                taxaAtual = 0; alerta.className = "hidden";
+            }
+            atualizarRodape();
+        }
+
+        function filtrar(c) {
+            categoriaAtual = c;
+            document.getElementById('tab-porcoes').className = (c === 'porcoes') ? 'py-5 w-full aba-ativa text-base' : 'py-5 w-full text-gray-400 text-base';
+            document.getElementById('tab-bebidas').className = (c === 'bebidas') ? 'py-5 w-full aba-ativa text-base' : 'py-5 w-full text-gray-400 text-base';
+            renderizarProdutos();
+        }
+
+        function renderizarProdutos() {
+            const container = document.getElementById('lista-produtos');
+            const filtrados = produtos.filter(p => p.cat === categoriaAtual);
+            let html = ""; let ultimo = "";
+            filtrados.forEach(p => {
+                if (p.grupo !== ultimo) { html += `<div class="divisor-tamanho">${p.grupo}</div>`; ultimo = p.grupo; }
+                const v = (parseFloat(p.preco) || 0).toFixed(2).replace('.', ',');
+                html += `
+                <div class="bg-white rounded-xl shadow-sm flex border p-2 items-center">
+                    <img src="${p.foto}" class="img-produto" onclick="abrirDetalhes('${p.nome}','${p.desc}','${p.foto}')">
+                    <div class="px-3 flex-1">
+                        <h3 class="font-black text-blue-900 text-[13px] uppercase italic leading-tight">${p.nome}</h3>
+                        <p class="text-green-600 font-black text-sm">R$ ${v}</p>
+                        <button onclick="abrirDetalhes('${p.nome}','${p.desc}','${p.foto}')" class="text-[9px] font-black text-blue-700 bg-blue-50 px-2 py-1 rounded mt-1 uppercase">Detalhes 🔍</button>
+                    </div>
+                    <div class="flex items-center bg-gray-100 rounded-xl border p-1">
+                        <button onclick="mudarQtd(${p.id},-1)" class="w-8 h-8 bg-white rounded text-red-500 font-black">-</button>
+                        <span class="font-black w-6 text-center text-xs">${sacola[p.id]?.qtd || 0}</span>
+                        <button onclick="mudarQtd(${p.id},1)" class="w-8 h-8 bg-white rounded text-blue-600 font-black">+</button>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function mudarQtd(id, v) {
+            if (!sacola[id]) sacola[id] = { ...produtos.find(p => p.id === id), qtd: 0 };
+            sacola[id].qtd += v;
+            if (sacola[id].qtd <= 0) delete sacola[id];
+            renderizarProdutos(); atualizarRodape();
+        }
+
+        function atualizarRodape() {
+            let sub = 0; for(let i in sacola) { sub += sacola[i].qtd * (parseFloat(sacola[i].preco) || 0); }
+            const total = sub + taxaAtual;
+            document.getElementById('total-txt').innerText = `R$ ${total.toFixed(2).replace('.',',')}`;
+            const ts = document.getElementById('total-sacola-txt');
+            const tt = document.getElementById('taxa-entrega-txt');
+            if(ts) ts.innerText = `R$ ${total.toFixed(2).replace('.',',')}`;
+            if(tt) tt.innerText = (taxaAtual === 0) ? "GRÁTIS" : `R$ ${taxaAtual.toFixed(2).replace('.',',')}`;
+        }
+
+        function abrirCarrinho() {
+            const l = document.getElementById('itens-sacola'); l.innerHTML = ""; let tem = false;
+            for(let i in sacola) { tem = true; l.innerHTML += `<div class="p-2 bg-gray-50 border-b">🔹 ${sacola[i].qtd}x ${sacola[i].nome}</div>`; }
+            if(!tem) return alert("Sacola vazia!");
+            document.getElementById('modalCarrinho').style.display = 'flex';
+            atualizarRodape();
+        }
+
+        function enviarPedido() {
+            const r = document.getElementById('end-rua').value;
+            const b = document.getElementById('end-bairro').value;
+            const ref = document.getElementById('end-ref').value;
+            const obs = document.getElementById('obs-pedido').value;
+            const pag = document.getElementById('pagamento').value;
+            const trocoPara = parseFloat(document.getElementById('troco-para').value) || 0;
+
+            if(!r || !b) return alert("Preencha o endereço!");
+            
+            let res = ""; let sub = 0;
+            for(let i in sacola) { res += `🔹 *${sacola[i].qtd}x ${sacola[i].nome}*\n`; sub += sacola[i].qtd * (parseFloat(sacola[i].preco) || 0); }
+            const total = sub + taxaAtual;
+            const zap = JSON.parse(localStorage.getItem('NAVEGA_CONFIG'))?.whatsapp || "5543996649273";
+
+            let m = `🎯 *NOVO PEDIDO - NAVEGA PORÇÕES* 🎯\n\n${res}\n📍 *END:* ${r}\n🏡 *BAIRRO:* ${b}\n`;
+            if(ref) m += `📍 *REF:* ${ref}\n`;
+            if(obs) m += `📝 *OBS:* ${obs}\n`;
+            
+            m += `\n💰 *PAG:* ${pag}\n`;
+            if(pag === 'Dinheiro' && trocoPara > total) {
+                m += `💵 *Troco para:* R$ ${trocoPara.toFixed(2).replace('.',',')}\n`;
+                m += `🤝 *(LEVAR R$ ${(trocoPara - total).toFixed(2).replace('.',',')} DE TROCO)*\n`;
+            }
+            
+            m += (taxaAtual === 0) ? `🛵 *ENTREGA: GRÁTIS*\n` : `🛵 *TAXA:* R$ ${taxaAtual.toFixed(2).replace('.',',')}\n`;
+            m += `\n👑 *TOTAL: R$ ${total.toFixed(2).replace('.',',')}* 👑`;
+            
+            window.open(`https://wa.me/${zap}?text=${encodeURIComponent(m)}`);
+        }
+
+        function abrirDetalhes(n,d,f) {
+            document.getElementById('m-titulo').innerText = n;
+            document.getElementById('m-desc').innerText = d || "Especialidade Navega Porções.";
+            document.getElementById('m-img').src = f;
+            document.getElementById('meuModal').style.display = 'flex';
+        }
+
+        function fecharModal() { document.getElementById('meuModal').style.display = 'none'; }
+        function fecharCarrinho() { document.getElementById('modalCarrinho').style.display = 'none'; }
+        function verificarDinheiro(v) { document.getElementById('div-troco').classList.toggle('hidden', v !== 'Dinheiro'); }
+
+        window.addEventListener('storage', carregarDadosAntena);
+        carregarDadosAntena();
+    </script>
+</body>
+</html>
