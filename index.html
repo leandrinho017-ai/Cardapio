@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Navega Porções e Petiscaria</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
         #meuModal, #modalCarrinho { display: none; }
         .img-produto { width: 75px; height: 75px; object-fit: cover; border-radius: 10px; background: #f3f4f6; border: 1px solid #e5e7eb; }
@@ -49,9 +51,7 @@
                 <h2 class="font-black text-xl italic uppercase text-blue-800 text-center w-full ml-6">Finalizar Pedido 🛍️</h2>
                 <button onclick="fecharCarrinho()" class="bg-gray-100 text-gray-500 w-10 h-10 rounded-full font-black text-xl shadow-inner flex items-center justify-center border">✕</button>
             </div>
-            
             <div id="itens-sacola" class="space-y-3 mb-4 text-sm font-bold"></div>
-
             <div class="space-y-1 p-3 bg-gray-100 rounded-xl mb-6 border border-dashed border-gray-300">
                 <div class="flex justify-between items-center">
                     <span class="font-black uppercase italic text-gray-500 text-[10px]">Taxa de Entrega:</span>
@@ -62,7 +62,6 @@
                     <span id="total-sacola-txt" class="font-black text-xl text-blue-800 italic">R$ 0,00</span>
                 </div>
             </div>
-            
             <div class="mb-6 space-y-3 bg-blue-50 p-4 rounded-xl border border-blue-100">
                 <p class="text-blue-800 font-black text-[10px] uppercase italic mb-1">📍 Endereço de Entrega:</p>
                 <input type="text" id="end-rua" placeholder="Rua e Número" class="w-full border rounded-lg p-3 text-sm">
@@ -71,7 +70,6 @@
                 <input type="text" id="end-ref" placeholder="Ponto de referência" class="w-full border rounded-lg p-3 text-sm">
                 <textarea id="obs-pedido" placeholder="Alguma observação?" class="w-full border rounded-lg p-3 text-sm" rows="2"></textarea>
             </div>
-
             <div class="mb-6">
                 <label class="block text-[10px] font-black uppercase text-gray-400 mb-2 font-bold">Pagamento</label>
                 <select id="pagamento" class="w-full border rounded-lg p-3 text-sm bg-white font-bold" onchange="verificarDinheiro(this.value)">
@@ -99,9 +97,23 @@
     </div>
 
     <script>
+        // CONFIGURAÇÃO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-X6VVXJmgpn_uQBhB8Z_J5443S6A6_tE",
+            authDomain: "navega-porcoes.firebaseapp.com",
+            databaseURL: "https://navega-porcoes-default-rtdb.firebaseio.com",
+            projectId: "navega-porcoes",
+            storageBucket: "navega-porcoes.firebasestorage.app",
+            messagingSenderId: "930238391754",
+            appId: "1:930238391754:web:53dfafba561b6eae69db33"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
         let categoriaAtual = 'porcoes';
         let sacola = {};
         let taxaAtual = 0.00;
+        let dadosGlobais = null;
 
         let produtos = [
             { id: 1, cat: 'porcoes', grupo: 'Tamanho P', nome: 'Batata Tradicional P', preco: 35.00, desc: 'Batata frita crocante, cheddar, bacon, Catupiry + molho verde.', foto: 'https://i.ibb.co/RkcBxdMr/batata-frita-com-bacon-e-cheddar-na-airfryer.jpg' },
@@ -129,46 +141,50 @@
             { id: 52, cat: 'bebidas', grupo: 'Refrigerantes', nome: 'Sprite 2L', preco: 14.99, desc: 'Gelada.', foto: 'https://i.ibb.co/zHLh5MM5/whatsapp-image-2024-08-13-at-13-05-44.jpg' }
         ];
 
-        function carregarDadosAntena() {
-            try {
-                const configSalva = JSON.parse(localStorage.getItem('NAVEGA_CONFIG'));
-                const precosSalvos = JSON.parse(localStorage.getItem('NAVEGA_PRODUTOS'));
-                const descSalvas = JSON.parse(localStorage.getItem('NAVEGA_DESCRICOES'));
+        // FUNÇÃO PARA LER DO FIREBASE EM TEMPO REAL
+        function monitorarFirebase() {
+            db.ref('navega_data').on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    dadosGlobais = snapshot.val();
+                    const config = dadosGlobais.config;
+                    const precosSalvos = dadosGlobais.produtos;
+                    const descSalvas = dadosGlobais.descricoes;
 
-                if (configSalva) {
-                    document.getElementById('info-preparo').innerHTML = `⏱️ PREPARO: ${configSalva.preparo} | 🛵 ENTREGA: ${configSalva.entrega}`;
-                    const btnFinal = document.getElementById('btn-finalizar');
-                    if (!configSalva.aberta) {
-                        document.body.classList.add('loja-fechada');
-                        document.getElementById('status-loja-badge').innerHTML = `<span class="badge-fechado font-black uppercase italic">Loja Fechada</span>`;
-                        btnFinal.innerText = "LOJA FECHADA";
-                    } else {
-                        document.body.classList.remove('loja-fechada');
-                        document.getElementById('status-loja-badge').innerHTML = "";
-                        btnFinal.innerText = "Fazer Pedido 🚀";
+                    if (config) {
+                        document.getElementById('info-preparo').innerHTML = `⏱️ PREPARO: ${config.preparo} | 🛵 ENTREGA: ${config.entrega}`;
+                        const btnFinal = document.getElementById('btn-finalizar');
+                        if (!config.aberta) {
+                            document.body.classList.add('loja-fechada');
+                            document.getElementById('status-loja-badge').innerHTML = `<span class="badge-fechado font-black uppercase italic">Loja Fechada</span>`;
+                            btnFinal.innerText = "LOJA FECHADA";
+                        } else {
+                            document.body.classList.remove('loja-fechada');
+                            document.getElementById('status-loja-badge').innerHTML = "";
+                            btnFinal.innerText = "Fazer Pedido 🚀";
+                        }
                     }
+
+                    produtos.forEach(p => {
+                        if (precosSalvos) {
+                            const cloudP = precosSalvos.find(x => x.id === p.id);
+                            if (cloudP) p.preco = parseFloat(cloudP.preco) || p.preco;
+                        }
+                        if (descSalvas && descSalvas[p.id]) {
+                            p.desc = descSalvas[p.id];
+                        }
+                    });
+                    renderizarProdutos();
                 }
-
-                produtos.forEach(p => {
-                    if (precosSalvos) {
-                        const novoPreco = precosSalvos.find(x => x.id === p.id);
-                        if (novoPreco) p.preco = parseFloat(novoPreco.preco) || p.preco;
-                    }
-                    if (descSalvas && descSalvas[p.id]) {
-                        p.desc = descSalvas[p.id];
-                    }
-                });
-
-                renderizarProdutos();
-            } catch(e) { console.error("Erro ao carregar antena", e); }
+            });
         }
 
         function validarBairroDinamico(texto) {
+            if(!dadosGlobais) return;
             const normalizar = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
             const bairroDigitado = normalizar(texto);
             const alerta = document.getElementById('alerta-taxa');
-            const taxasSalvas = JSON.parse(localStorage.getItem('NAVEGA_TAXAS')) || [];
-            const configSalva = JSON.parse(localStorage.getItem('NAVEGA_CONFIG')) || { taxaPadrao: 0 };
+            const taxasSalvas = dadosGlobais.taxas || [];
+            const configSalva = dadosGlobais.config || { taxaPadrao: 0 };
 
             const busca = taxasSalvas.find(t => normalizar(t.bairro) === bairroDigitado);
 
@@ -256,21 +272,18 @@
             let res = ""; let sub = 0;
             for(let i in sacola) { res += `🔹 *${sacola[i].qtd}x ${sacola[i].nome}*\n`; sub += sacola[i].qtd * (parseFloat(sacola[i].preco) || 0); }
             const total = sub + taxaAtual;
-            const zap = JSON.parse(localStorage.getItem('NAVEGA_CONFIG'))?.whatsapp || "5543996649273";
+            const zap = dadosGlobais?.config?.whatsapp || "5543996649273";
 
             let m = `🎯 *NOVO PEDIDO - NAVEGA PORÇÕES* 🎯\n\n${res}\n📍 *END:* ${r}\n🏡 *BAIRRO:* ${b}\n`;
             if(ref) m += `📍 *REF:* ${ref}\n`;
             if(obs) m += `📝 *OBS:* ${obs}\n`;
-            
             m += `\n💰 *PAG:* ${pag}\n`;
             if(pag === 'Dinheiro' && trocoPara > total) {
                 m += `💵 *Troco para:* R$ ${trocoPara.toFixed(2).replace('.',',')}\n`;
                 m += `🤝 *(LEVAR R$ ${(trocoPara - total).toFixed(2).replace('.',',')} DE TROCO)*\n`;
             }
-            
             m += (taxaAtual === 0) ? `🛵 *ENTREGA: GRÁTIS*\n` : `🛵 *TAXA:* R$ ${taxaAtual.toFixed(2).replace('.',',')}\n`;
             m += `\n👑 *TOTAL: R$ ${total.toFixed(2).replace('.',',')}* 👑`;
-            
             window.open(`https://wa.me/${zap}?text=${encodeURIComponent(m)}`);
         }
 
@@ -285,8 +298,8 @@
         function fecharCarrinho() { document.getElementById('modalCarrinho').style.display = 'none'; }
         function verificarDinheiro(v) { document.getElementById('div-troco').classList.toggle('hidden', v !== 'Dinheiro'); }
 
-        window.addEventListener('storage', carregarDadosAntena);
-        carregarDadosAntena();
+        // INICIA O MONITORAMENTO DO GOOGLE
+        monitorarFirebase();
     </script>
 </body>
 </html>
